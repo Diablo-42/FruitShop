@@ -9,7 +9,7 @@ from app.utils.db import get_db
 from app import models, schemas
 
 router = APIRouter(
-    prefix="/order",
+    prefix="/orders",
     tags=["orders"],
     responses={404: {"description": "Not found"}, 401: {"description": "Unauthorized"}},
 )
@@ -40,10 +40,37 @@ async def get_order(
     if order is None:
         raise HTTPException(status_code=404, detail="Заказ не найден")
     
-    if current_user.role != "admin" and current_user.id != order.id_client:
+    if current_user.role != "admin" and current_user.id != order.id_user:
         raise HTTPException(status_code=403, detail="Недостаточно прав")
     
     return order
+
+@router.get("/{id}/item/{itemid}", response_model=schemas.OrderDetail)
+async def get_order_item(
+    id: int,
+    itemid: int,
+    current_user: schemas.User = Depends(get_current_active_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Получение детали заказа по ID заказа и ID детали (требуется авторизация)
+    """
+    result = await db.execute(
+        select(models.OrderDetail)
+        .filter(models.OrderDetail.id_order == id, models.OrderDetail.id_order_detail == itemid)
+    )
+    order_detail = result.scalars().first()
+    if order_detail is None:
+        raise HTTPException(status_code=404, detail="Деталь заказа не найдена")
+    
+    order = await db.execute(
+        select(models.Order).filter(models.Order.id_order == id)
+    )
+    order = order.scalars().first()
+    if current_user.role != "admin" and order.id_user != current_user.id:
+        raise HTTPException(status_code=403, detail="Недостаточно прав")
+    
+    return order_detail
 
 @router.post("", response_model=schemas.Order, status_code=201)
 async def create_order(
@@ -54,11 +81,11 @@ async def create_order(
     """
     Создание нового заказа с деталями
     """
-    if current_user.role != "admin" and current_user.id != order.id_client:
+    if current_user.role != "admin" and current_user.id != order.id_user:
         raise HTTPException(status_code=403, detail="Недостаточно прав")
 
     db_order = models.Order(
-        id_client=order.id_client,
+        id_user=order.id_user,
         order_date=datetime.now(),
         total_amount=0
     )
@@ -113,7 +140,7 @@ async def update_order(
     if db_order is None:
         raise HTTPException(status_code=404, detail="Заказ не найден")
     
-    if current_user.role != "admin" and current_user.id != db_order.id_client:
+    if current_user.role != "admin" and current_user.id != db_order.id_user:
         raise HTTPException(status_code=403, detail="Недостаточно прав")
     
     for key, value in order.model_dump(exclude_unset=True).items():

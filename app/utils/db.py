@@ -4,14 +4,12 @@ from sqlalchemy.ext.declarative import declarative_base
 from config import Config 
 from typing import AsyncGenerator
 
-# Создание асинхронного engine
 engine = create_async_engine(
     Config.SQLALCHEMY_DATABASE_URI.replace("sqlite:///", "sqlite+aiosqlite:///"),
     echo=True,
     future=True
 )
 
-# Создание асинхронной сессии
 AsyncSessionLocal = sessionmaker(
     engine, class_=AsyncSession, expire_on_commit=False
 )

@@ -17,11 +17,12 @@ from app.utils.security import (
 from app import schemas, models
 
 router = APIRouter(
-    prefix="/auth",
-    tags=["auth"],
+    prefix="/users",
+    tags=["users"],
     responses={401: {"description": "Unauthorized"}},
 )
 
+# Аутентификация
 @router.post("/token", response_model=schemas.Token)
 async def login_for_access_token(
     form_data: OAuth2PasswordRequestForm = Depends(),
@@ -40,12 +41,13 @@ async def login_for_access_token(
     )
     return {"access_token": access_token, "token_type": "bearer"}
 
+# Регистрация и управление пользователями
 @router.post("/register", response_model=schemas.User, status_code=201)
 async def register_user(
     user_data: schemas.UserCreate,
     db: AsyncSession = Depends(get_db)
 ):
-    # Проверить, что пользователь с таким именем не существует
+    # Проверка уникальности username и email
     result = await db.execute(
         select(models.User).filter(models.User.username == user_data.username)
     )
@@ -55,7 +57,6 @@ async def register_user(
             detail="Пользователь с таким именем уже существует"
         )
     
-    # Проверить, что пользователь с таким email не существует
     result = await db.execute(
         select(models.User).filter(models.User.email == user_data.email)
     )
@@ -65,49 +66,63 @@ async def register_user(
             detail="Пользователь с таким email уже существует"
         )
     
-    # Создать нового пользователя
+    # Создание нового пользователя
     hashed_password = get_password_hash(user_data.password)
     db_user = models.User(
         username=user_data.username,
         email=user_data.email,
-        hashed_password=hashed_password
+        hashed_password=hashed_password,
+        full_name=user_data.full_name,
+        address=user_data.address,
+        phone=user_data.phone
     )
     db.add(db_user)
     await db.commit()
     await db.refresh(db_user)
     return db_user
 
-@router.get("/users", response_model=List[schemas.User])
+@router.get("/", response_model=List[schemas.User])
 async def get_users(
     current_user: schemas.User = Depends(has_role("admin")),
     db: AsyncSession = Depends(get_db)
 ):
-    """
-    Получение списка всех пользователей (только для администраторов)
-    """
+    """Получение списка всех пользователей (только для администраторов)"""
     result = await db.execute(select(models.User))
     users = result.scalars().all()
     return users
 
-@router.get("/users/me", response_model=schemas.User)
-async def get_current_user(
-    current_user: schemas.User = Depends(get_current_active_user)
+@router.get("/{user_id}", response_model=schemas.User)
+async def get_user(
+    user_id: int,
+    current_user: schemas.User = Depends(get_current_active_user),
+    db: AsyncSession = Depends(get_db)
 ):
-    """
-    Получение информации о текущем пользователе
-    """
-    return current_user
+    """Получение информации о пользователе по ID"""
+    if current_user.role != "admin" and current_user.id != user_id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Недостаточно прав для просмотра данных другого пользователя"
+        )
+    
+    result = await db.execute(
+        select(models.User).filter(models.User.id == user_id)
+    )
+    user = result.scalars().first()
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Пользователь не найден"
+        )
+    return user
 
-@router.put("/users/{user_id}", response_model=schemas.User)
+@router.put("/{user_id}", response_model=schemas.User)
 async def update_user(
     user_id: int,
     user_data: schemas.UserUpdate,
     current_user: schemas.User = Depends(get_current_active_user),
     db: AsyncSession = Depends(get_db)
 ):
-    """
-    Обновление данных пользователя (пользователь может обновлять только свои данные, админ - любые)
-    """
+    """Обновление данных пользователя"""
     if current_user.role != "admin" and current_user.id != user_id:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
@@ -126,14 +141,12 @@ async def update_user(
 
     update_data = user_data.model_dump(exclude_unset=True)
     
-    # Только админ может менять роль пользователя
     if "role" in update_data and current_user.role != "admin":
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Только администратор может менять роль пользователя"
         )
 
-    # Если меняется пароль, хешируем его
     if "password" in update_data:
         update_data["hashed_password"] = get_password_hash(update_data.pop("password"))
 
@@ -144,15 +157,13 @@ async def update_user(
     await db.refresh(db_user)
     return db_user
 
-@router.delete("/users/{user_id}")
+@router.delete("/{user_id}")
 async def delete_user(
     user_id: int,
     current_user: schemas.User = Depends(has_role("admin")),
     db: AsyncSession = Depends(get_db)
 ):
-    """
-    Удаление пользователя (только для администраторов)
-    """
+    """Удаление пользователя (только для администраторов)"""
     result = await db.execute(
         select(models.User).filter(models.User.id == user_id)
     )
@@ -167,15 +178,13 @@ async def delete_user(
     await db.commit()
     return {"message": "Пользователь удален"}
 
-@router.post("/users/{user_id}/make-admin")
+@router.post("/{user_id}/make-admin")
 async def make_user_admin(
     user_id: int,
     current_user: schemas.User = Depends(has_role("admin")),
     db: AsyncSession = Depends(get_db)
 ):
-    """
-    Назначение пользователя администратором (только для администраторов)
-    """
+    """Назначение пользователя администратором (только для администраторов)"""
     result = await db.execute(
         select(models.User).filter(models.User.id == user_id)
     )
@@ -189,4 +198,4 @@ async def make_user_admin(
     db_user.role = "admin"
     await db.commit()
     await db.refresh(db_user)
-    return {"message": "Пользователь назначен администратором"}
+    return {"message": "Пользователь назначен администратором"} 

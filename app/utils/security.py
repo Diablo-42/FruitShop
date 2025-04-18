@@ -22,16 +22,15 @@ ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 30
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/token")
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/users/token")
 
-# Функции для работы с паролями
 def verify_password(plain_password, hashed_password):
     return pwd_context.verify(plain_password, hashed_password)
 
 def get_password_hash(password):
     return pwd_context.hash(password)
 
-# Функции для работы с пользователями
+
 async def get_user(db: AsyncSession, username: str):
     result = await db.execute(select(models.User).filter(models.User.username == username))
     return result.scalars().first()
@@ -44,7 +43,7 @@ async def authenticate_user(db: AsyncSession, username: str, password: str):
         return False
     return user
 
-# Функции для работы с JWT токенами
+
 def create_access_token(data: dict, expires_delta: Optional[timedelta] = timedelta(minutes=15)):
     to_encode = data.copy()
     expire = datetime.now() + expires_delta
@@ -71,13 +70,12 @@ async def get_current_user(token: str = Depends(oauth2_scheme), db: AsyncSession
         raise credentials_exception
     return user
 
-# Функция для проверки активности пользователя
+
 async def get_current_active_user(current_user: schemas.User = Depends(get_current_user)):
     if not current_user.is_active:
         raise HTTPException(status_code=400, detail="Неактивный пользователь")
     return current_user
 
-# Функция для проверки роли пользователя
 def has_role(required_role: str):
     async def role_checker(current_user: schemas.User = Depends(get_current_active_user)):
         if current_user.role != required_role:

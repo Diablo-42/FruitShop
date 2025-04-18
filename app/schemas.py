@@ -51,22 +51,6 @@ class Product(ProductBase):
     class Config:
         from_attributes = True
 
-# Модели для клиентов
-class ClientBase(BaseModel):
-    name: str
-    surname: str
-    phone_number: str
-    email: str
-
-class ClientCreate(ClientBase):
-    pass
-
-class Client(ClientBase):
-    id_client: int
-
-    class Config:
-        from_attributes = True
-
 # Модели для заказов
 class OrderDetailBase(BaseModel):
     id_product: int
@@ -84,16 +68,8 @@ class OrderDetail(OrderDetailBase):
     class Config:
         from_attributes = True
 
-class OrderDetailUpdate(BaseModel):
-    quantity: Optional[float] = None
-    unit_type: Optional[UnitType] = None
-    price: Optional[float] = None
-
-    class Config:
-        from_attributes = True
-
 class OrderBase(BaseModel):
-    id_client: int
+    id_user: int
 
 class OrderCreate(OrderBase):
     order_details: List[OrderDetailCreate]
@@ -109,7 +85,7 @@ class Order(OrderBase):
 
 # Модели для отзывов
 class ReviewBase(BaseModel):
-    id_client: int
+    id_user: int 
     id_product: int
     rating: int
     comment: str
@@ -126,13 +102,16 @@ class Review(ReviewBase):
 class UserBase(BaseModel):
     username: str
     email: str
+    full_name: str | None = None
+    address: str | None = None
+    phone: str | None = None
 
 class UserCreate(UserBase):
     password: str
 
 class UserUpdate(UserBase):
-    password: str = None 
-    role: str = None  
+    password: str | None = None
+    role: str | None = None
 
 class User(UserBase):
     id: int
@@ -141,7 +120,7 @@ class User(UserBase):
 
     class Config:
         from_attributes = True
-
+        
 class Token(BaseModel):
     access_token: str
     token_type: str
