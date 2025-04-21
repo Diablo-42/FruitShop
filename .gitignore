@@ -1,0 +1,4 @@
+/.idea
+/venv
+/backend/.env
+/backend/fruit_shop.db
