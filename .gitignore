@@ -1,3 +1,8 @@
+/.idea
 /venv
-.env
-fruit_shop.db
+
+/backend/.env
+/backend/fruit_shop.db
+
+frontend/node_modules
+frontend/public/images
