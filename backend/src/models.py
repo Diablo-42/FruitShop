@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, Float, DateTime, ForeignKey, Text, Boolean, Enum, Date
+from sqlalchemy import Column, Integer, String, Float, DateTime, ForeignKey, Text, Boolean, Enum, Date, UniqueConstraint
 from sqlalchemy.orm import relationship
 from backend.src.utils.db import Base
 from backend.src.schemas import UnitType, OrderStatusEnum
@@ -70,6 +70,7 @@ class User(Base):
 
     orders = relationship("Order", back_populates="user", cascade="all, delete-orphan")
     reviews = relationship("Review", back_populates="user", cascade="all, delete-orphan")
+    cart_items = relationship("CartItem", back_populates="user", cascade="all, delete-orphan")
 
 class OrderDetail(Base):
     __tablename__ = "order_details"
@@ -82,4 +83,17 @@ class OrderDetail(Base):
     price = Column(Float, nullable=False)
 
     order = relationship("Order", back_populates="order_details")
-    product = relationship("Product", back_populates="order_details") 
+    product = relationship("Product", back_populates="order_details")
+
+class CartItem(Base):
+    __tablename__ = 'cart_items'
+
+    id_cart_item = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey('users.id'), nullable=False)
+    product_id = Column(Integer, ForeignKey('products.id_product'), nullable=False)
+    quantity = Column(Integer, nullable=False, default=1)
+
+    user = relationship("User")
+    product = relationship("Product")
+
+    __table_args__ = (UniqueConstraint('user_id', 'product_id', name='uq_user_product'),)

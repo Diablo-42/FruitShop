@@ -1,4 +1,4 @@
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, ConfigDict
 from typing import Optional, List
 from datetime import datetime, date
 from enum import Enum
@@ -59,6 +59,28 @@ class Product(ProductBase):
 
     class Config:
         from_attributes = True
+
+class ProductInCart(ProductBase):
+    id_product: int
+    model_config = ConfigDict(from_attributes=True)
+
+# --- Схемы для Корзины ---
+class CartItemBase(BaseModel):
+    product_id: int
+    quantity: int
+
+class CartItemCreate(CartItemBase):
+    pass
+
+class CartItemUpdate(BaseModel):
+    quantity: int
+
+class CartItem(CartItemBase):
+    id_cart_item: int
+    user_id: int
+    product: ProductInCart
+
+    model_config = ConfigDict(from_attributes=True)
 
 # --- Детали Заказа ---
 class OrderDetailBase(BaseModel):

@@ -1,4 +1,3 @@
-/.idea
 /venv
-/backend/.env
-/backend/fruit_shop.db
+.env
+fruit_shop.db

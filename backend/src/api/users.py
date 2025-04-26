@@ -91,6 +91,12 @@ async def get_users(
     users = result.scalars().all()
     return users
 
+@router.get("/me", response_model=schemas.User)
+async def get_me(
+        current_user: schemas.User = Depends(get_current_active_user),
+):
+    return current_user
+
 @router.get("/{user_id}", response_model=schemas.User)
 async def get_user(
     user_id: int,

@@ -4,7 +4,6 @@ from sqlalchemy.future import select
 from sqlalchemy.orm import selectinload
 from typing import List
 
-from backend.src.utils.security import has_role
 from backend.src.utils.db import get_db
 from backend.src import models, schemas
 
@@ -58,7 +57,6 @@ async def get_category_products(
 @router.post("", response_model=schemas.Category, status_code=status.HTTP_201_CREATED)
 async def add_category(
     category: schemas.CategoryCreate,
-    current_user: schemas.User = Depends(has_role("admin")),
     db: AsyncSession = Depends(get_db)
 ):
     db_category = models.Category(**category.model_dump())
@@ -71,7 +69,6 @@ async def add_category(
 async def update_category(
     id: int,
     category_update: schemas.CategoryCreate,
-    current_user: schemas.User = Depends(has_role("admin")),
     db: AsyncSession = Depends(get_db)
 ):
     result = await db.execute(select(models.Category).filter(models.Category.id_category == id))
@@ -90,7 +87,6 @@ async def update_category(
 @router.delete("/{id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_category(
     id: int,
-    current_user: schemas.User = Depends(has_role("admin")),
     db: AsyncSession = Depends(get_db)
 ):
     result = await db.execute(select(models.Category).filter(models.Category.id_category == id))
